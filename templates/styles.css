@@ -1,0 +1,23 @@
+.text-wrapper {
+  width: 100%; /* Pastikan elemen pembungkus memiliki lebar penuh */
+  overflow: hidden; /* Sembunyikan teks yang bergerak di luar area */
+  position: relative;
+}
+
+.text-animate {
+  display: inline-block;
+  white-space: nowrap; /* Pastikan teks tidak terputus */
+  position: relative;
+  animation: scroll-text 15s linear infinite; /* Atur animasi */
+  font-size: 1 rem;
+}
+
+/* Keyframes untuk animasi scroll */
+@keyframes scroll-text {
+  0% {
+    transform: translateX(150%); /* Mulai di luar layar sebelah kanan */
+  }
+  100% {
+    transform: translateX(-135%); /* Bergerak hingga ke luar layar sebelah kiri */
+  }
+}
