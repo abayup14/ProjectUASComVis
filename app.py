@@ -6,7 +6,6 @@ import tensorflow as tf
 import cv2
 import io
 from PIL import Image
-# import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 app.config['DEBUG'] = True
