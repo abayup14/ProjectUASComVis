@@ -8,102 +8,182 @@
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="styles.css">
-
     <title>Project UAS COMVIS</title>
+    <style>
+        #live-feed-webcam video {
+            width: 100%;
+            max-width: 400px;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+        }
+
+        #snapshot-btn {
+            margin-top: 10px;
+        }
+
+        #canvas-container {
+            margin-top: 20px;
+        }
+
+        #canvas {
+            border: 2px solid #6c757d;
+            border-radius: 8px;
+        }
+    </style>
 </head>
 
 <body>
-    <div class="container my-4 py-2 px-lg-4 px-md-2 bg-light-subtle rounded">
-        <h2 class="display-3 mb-0">Project</h2>
-        <h2 class="display-3 mb-4">Computer Vision</h2>
-        <h4 class="display-6">Text from Picture:</h4>
-        <div class="row p-2 m-3">
-            <div class="col-6 text-center">
+    <div class="container mt-4 mb-5 py-2 px-lg-4 px-md-2 bg-light-subtle rounded text-center ">
+        <h2 class="display-1 mb-0">Project Computer Vision</h2>
+        <h2 class="display-4 mb-4">Picture to Text</h2>
 
+        <!-- Live Webcam Feed -->
+        <div id="live-feed-webcam" class="d-flex flex-column align-items-center mb-4">
+            <video autoplay="true" id="video-webcam" style="display: none;">
+                Browser Anda tidak mendukung video streaming.
+            </video>
+            <button id="snapshot-btn" class="btn btn-primary" style="display: none;">Take Snapshot</button>
+        </div>
+
+        <!-- Canvas for displaying image -->
+        <div id="canvas-container" class="d-flex justify-content-center mb-2">
+            <canvas id="canvas" width="400" height="275"></canvas>
+        </div>
+        <div id="div-predict" style="display: none;">
+            <button id="btn-predict" class="btn btn-outline-success mb-2">
+                Predict
+            </button>
+            <p id="word-predict" style="display: none;">Predict: lorem ipsum</p>
+        </div>
+
+        <!-- Buttons for camera and gallery -->
+        <div class="row p-2 mt-4">
+            <div class="col-6 text-center">
                 <button class="btn btn-lg btn-outline-primary px-5" id="btn-camera">
-                    <i class="bi bi-camera" style="font-size: 2rem" id="icon-camera"></i>
-                    <p id="text-camera">Use Camera</p>
+                    <i class="bi bi-camera" style="font-size: 2rem"></i>
+                    <p>Use Camera</p>
                 </button>
             </div>
             <div class="col-6 text-center">
+                <input type="file" id="gallery-input" accept="image/*" style="display: none;">
                 <button class="btn btn-lg btn-outline-secondary px-5" id="btn-gallery">
                     <i class="bi bi-image" style="font-size: 2rem"></i>
                     <p>From Gallery</p>
                 </button>
             </div>
         </div>
-        <div id="live-feed-webcam">
-            <video autoplay="true" id="video-webcam">
-                Browsermu tidak mendukung bro, upgrade donk!
-            </video>
-        </div>
-        <div id="show-image" style="display: none;">
-
-        </div>
-        <div id="result" style="display: none;">
-
-        </div>
     </div>
-    <footer class="fixed-bottom bg-success-subtle">
+
+    <footer class="fixed-bottom bg-success-subtle ">
         <div class="text-wrapper justify-content-end">
             <p class="text-animate text-center m-2">
                 Nama Kelompok:
-                <strong> 160421033 - Zefanya Isaac Santoso </strong>|
-                <strong> 160421058 - Andreas Bayu Prakarsa </strong>|
+                <strong> 160421033 - Zefanya Isaac Santoso </strong> |
+                <strong> 160421058 - Andreas Bayu Prakarsa </strong> |
                 <strong> 160421093 - Stewart Wibowo </strong>
             </p>
         </div>
     </footer>
-    <script type="text/javascript">
-        var video = document.querySelector("#video-webcam");
-        var startButton = document.querySelector("#btn-camera");
-        var cameraText = document.querySelector("#text-camera");
-        var stream = null;
-        // Event listener pada tombol
-        startButton.addEventListener("click", function () {
-            if (!stream) {
-                navigator.getUserMedia =
-                    navigator.getUserMedia ||
-                    navigator.webkitGetUserMedia ||
-                    navigator.mozGetUserMedia ||
-                    navigator.msGetUserMedia ||
-                    navigator.oGetUserMedia;
 
-                // Jika user memberikan izin
-                if (navigator.getUserMedia) {
-                    // Jalankan fungsi handleVideo jika izin diberikan, dan videoError jika ditolak
-                    navigator.getUserMedia({ video: true }, handleVideo, videoError);
+    <script>
+        const video = document.querySelector("#video-webcam");
+        const cameraButton = document.querySelector("#btn-camera");
+        const galleryButton = document.querySelector("#btn-gallery");
+        const galleryInput = document.querySelector("#gallery-input");
+        const snapshotButton = document.querySelector("#snapshot-btn");
+        const canvas = document.querySelector("#canvas");
+        const context = canvas.getContext("2d");
+        const predictDiv = document.querySelector("#div-predict");
+        const predictButton = document.querySelector("#btn-predict");
+        const predictResult = document.querySelector("#word-predict");
+        let stream = null;
+
+        predictButton.addEventListener("click", async function () {
+            const imageData = canvas.toDataURL("image/png"); // Ambil gambar dalam format Base64
+            const formData = new FormData();
+            formData.append("image", imageData);
+
+            try {
+                const response = await fetch("/get_predict", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultText.style.display = "block";
+                    resultText.textContent = `Predict: ${data.result}`;
+                } else {
+                    resultText.style.display = "block";
+                    resultText.textContent = "Failed to predict. Please try again.";
                 }
+            } catch (error) {
+                resultText.style.display = "block";
+                resultText.textContent = "Error: Could not connect to server.";
+            }
+        });
+        cameraButton.addEventListener("click", function () {
+            if (!stream) {
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(handleVideo)
+                    .catch(videoError);
             } else {
-                // Menghentikan webcam
                 stopWebcam();
             }
-            // Minta izin user
-
         });
 
-        // Fungsi ini akan dieksekusi jika izin diberikan
         function handleVideo(mediaStream) {
             stream = mediaStream;
-            video.srcObject = mediaStream;
-            video.style.display = "block"; // Tampilkan elemen video
-            cameraText.textContent = "Stop Camera"; // Ubah teks tombol
+            video.srcObject = stream;
+            video.style.display = "block";
+            snapshotButton.style.display = "inline-block";
+            cameraButton.querySelector("p").textContent = "Stop Camera";
+            canvas.style.display = "none";
         }
 
-        // Fungsi ini akan dieksekusi kalau user menolak izin
-        function videoError(e) {
-            alert("Izinkan menggunakan webcam untuk demo!");
+        function videoError() {
+            alert("Failed to access webcam. Please allow access.");
         }
 
-        // Fungsi untuk menghentikan stream video
         function stopWebcam() {
-            stream.getTracks().forEach(track => track.stop()); // Hentikan semua track dalam stream
-            video.srcObject = null; // Hapus sumber video
-            video.style.display = "none"; // Sembunyikan elemen video
-            cameraText.textContent = "Use Camera"; // Ubah teks tombol
-            stream = null; // Reset stream
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                video.style.display = "none";
+                snapshotButton.style.display = "none";
+                cameraButton.querySelector("p").textContent = "Use Camera";
+                stream = null;
+                canvas.style.display = "block";
+            }
         }
 
+        // Take Snapshot
+        snapshotButton.addEventListener("click", function () {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            predictDiv.style.display = "block";
+            stopWebcam()
+        });
+
+        // Gallery Input
+        galleryButton.addEventListener("click", function () {
+            galleryInput.click();
+        });
+
+        galleryInput.addEventListener("change", function (event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const img = new Image();
+                    img.onload = function () {
+                        context.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+                predictDiv.style.display = "block";
+            }
+        });
     </script>
 </body>
 

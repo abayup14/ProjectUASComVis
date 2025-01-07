@@ -1,8 +1,11 @@
+import base64
+import numpy as np
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 import tensorflow as tf
 import cv2
-import matplotlib.pyplot as plt
+import io
+from PIL import Image
 
 app = Flask(__name__)
 app.config['DEBUG'] = True
@@ -50,14 +53,36 @@ def detect_char(image):
 def home():
     return render_template('index.html')
 
-@app.route('/get_sentiment', methods=['POST'])
-def get_sentiment():
-    return jsonify({"sentiment": "neutral",
-                    "sentiment_conf": 0.6,
-                    "emotion": "happy",
-                    "emotion_conf": 0.8
-                    })
+@app.route('/get_predict', methods=['POST'])
+def get_predict():
+    if "image" not in request.form:
+        return jsonify({"error": "No image provided"}), 400
+    
+    image_data = request.form["image"]
+    image_data = image_data.split(",")[1]  # Remove data:image/png;base64 prefix
+    decoded_image = base64.b64decode(image_data)
+    image = np.array(Image.open(io.BytesIO(decoded_image)))
+    
+    try:
+        detected_characters = detect_char(image)
+        # Assuming your model processes single characters as input
+        predictions = []
+        for char_image in detected_characters:
+            if isinstance(char_image, np.ndarray):
+                char_image = np.expand_dims(char_image, axis=-1)  # Add channel dimension for grayscale
+                char_image = np.expand_dims(char_image, axis=0)   # Add batch dimension
+                prediction = model.predict(char_image)
+                predicted_label = np.argmax(prediction)
+                predictions.append(str(predicted_label))
+            else:
+                predictions.append(char_image)  # Append space or non-character
 
+        result = "".join(predictions)
+        return jsonify({"result": result})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 
 if __name__ == '__main__':
     app.run()
