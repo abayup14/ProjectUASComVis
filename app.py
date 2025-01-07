@@ -64,7 +64,7 @@ def get_predict():
         detected_characters = detect_char(image)
         result = ""
 
-        for i, char_image in enumerate(detected_characters):
+        for char_image in enumerate(detected_characters):
             if isinstance(char_image, str) and char_image == " ":
                 result += " "
             else:
