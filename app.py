@@ -18,8 +18,6 @@ def detect_char(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    # cont = contours[0]
-    # imgcnt = cv2.drawContours(image, contours, -1, (0,255,0), 3)
     contours = sorted(contours, key=lambda x: cv2.boundingRect(x)[0])
 
     # Initialize list to store detected characters, and set a space threshold
