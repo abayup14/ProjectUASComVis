@@ -6,20 +6,20 @@ import tensorflow as tf
 import cv2
 import io
 from PIL import Image
+# import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 app.config['DEBUG'] = True
 
 model = tf.keras.models.load_model("model_comvis.h5")
+alphabet = u"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 def detect_char(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     # cont = contours[0]
-    imgcnt=cv2.drawContours(image, contours, -1, (0,255,0), 3)
-    plt.imshow(imgcnt)
-    plt.show()
+    # imgcnt = cv2.drawContours(image, contours, -1, (0,255,0), 3)
     contours = sorted(contours, key=lambda x: cv2.boundingRect(x)[0])
 
     # Initialize list to store detected characters, and set a space threshold
@@ -30,7 +30,7 @@ def detect_char(image):
     # Loop through contours to detect characters and spaces
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        if w > 25 and h > 25 :  # Filter out noise or small contours
+        if w > 5 and h > 10 :  # Filter out noise or small contours
 
             # Detect spaces by checking distance between characters
             if previous_x is not None and (x - previous_x) > space_threshold:
@@ -57,32 +57,45 @@ def home():
 def get_predict():
     if "image" not in request.form:
         return jsonify({"error": "No image provided"}), 400
-    
-    image_data = request.form["image"]
-    image_data = image_data.split(",")[1]  # Remove data:image/png;base64 prefix
-    decoded_image = base64.b64decode(image_data)
-    image = np.array(Image.open(io.BytesIO(decoded_image)))
-    
-    try:
-        detected_characters = detect_char(image)
-        # Assuming your model processes single characters as input
-        predictions = []
-        for char_image in detected_characters:
-            if isinstance(char_image, np.ndarray):
-                char_image = np.expand_dims(char_image, axis=-1)  # Add channel dimension for grayscale
-                char_image = np.expand_dims(char_image, axis=0)   # Add batch dimension
-                prediction = model.predict(char_image)
-                predicted_label = np.argmax(prediction)
-                predictions.append(str(predicted_label))
-            else:
-                predictions.append(char_image)  # Append space or non-character
 
-        result = "".join(predictions)
+    try:
+        image_data = request.form["image"]
+        image_data = image_data.split(",")[1]  # Remove data:image/png;base64 prefix
+        decoded_image = base64.b64decode(image_data)
+        image = np.array(Image.open(io.BytesIO(decoded_image)))
+
+        detected_characters = detect_char(image)
+        result = ""
+
+        for i, char_image in enumerate(detected_characters):
+            if isinstance(char_image, str) and char_image == " ":
+                result += " "
+            else:
+                char_img = cv2.resize(char_image, (56, 56))
+                char_img_rgb = cv2.cvtColor(char_img, cv2.COLOR_GRAY2RGB)
+                char_img_rgb = np.expand_dims(char_img_rgb, axis=0)
+                char_img_rgb = char_img_rgb.astype('float32')
+
+                pred = model.predict(char_img_rgb)
+                best_idx = np.argmax(pred[0])
+                best_char = alphabet[best_idx]
+                print(best_char)
+                result += best_char
+            #     char_image = np.expand_dims(char_image, axis=-1)  # Add channel dimension for grayscale
+            #     char_image = np.expand_dims(char_image, axis=0)   # Add batch dimension
+            #     prediction = model.predict(char_image)
+            #     predicted_label = np.argmax(prediction)
+            #     predictions.append(str(predicted_label))
+            # else:
+            #     predictions.append(char_image)  # Append space or non-character
+
+        # result = "".join(predictions)
+        print(result)
         return jsonify({"result": result})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
+
 
 if __name__ == '__main__':
     app.run()
