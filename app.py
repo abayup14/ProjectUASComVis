@@ -19,19 +19,16 @@ def detect_char(image):
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = sorted(contours, key=lambda x: cv2.boundingRect(x)[0])
 
-    # Initialize list to store detected characters, and set a space threshold
     detected_characters = []
-    space_threshold = 50 # Adjust based on your image's spacing
+    space_threshold = 50
     previous_x = None
 
-    # Loop through contours to detect characters and spaces
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        if w > 5 and h > 10 :  # Filter out noise or small contours
-
+        if w > 5 and h > 10 :
             # Detect spaces by checking distance between characters
             if previous_x is not None and (x - previous_x) > space_threshold:
-                detected_characters.append(' ')  # Add a space
+                detected_characters.append(' ')
 
             # Extract character as ROI
             char_image = binary[y:y+h, x:x+w]
@@ -64,34 +61,26 @@ def get_predict():
         detected_characters = detect_char(image)
         result = ""
 
-        for char_image in enumerate(detected_characters):
+        for char_image in detected_characters:
             if isinstance(char_image, str) and char_image == " ":
                 result += " "
             else:
-                char_img = cv2.resize(char_image, (56, 56))
-                char_img_rgb = cv2.cvtColor(char_img, cv2.COLOR_GRAY2RGB)
+                char_img_rgb = cv2.cvtColor(char_image, cv2.COLOR_GRAY2RGB)
                 char_img_rgb = np.expand_dims(char_img_rgb, axis=0)
-                char_img_rgb = char_img_rgb.astype('float32')
+                char_img_rgb = char_img_rgb.astype('float32') / 255.0
 
                 pred = model.predict(char_img_rgb)
                 best_idx = np.argmax(pred[0])
                 best_char = alphabet[best_idx]
                 print(best_char)
                 result += best_char
-            #     char_image = np.expand_dims(char_image, axis=-1)  # Add channel dimension for grayscale
-            #     char_image = np.expand_dims(char_image, axis=0)   # Add batch dimension
-            #     prediction = model.predict(char_image)
-            #     predicted_label = np.argmax(prediction)
-            #     predictions.append(str(predicted_label))
-            # else:
-            #     predictions.append(char_image)  # Append space or non-character
 
-        # result = "".join(predictions)
         print(result)
         return jsonify({"result": result})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 if __name__ == '__main__':
